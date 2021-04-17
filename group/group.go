@@ -129,6 +129,7 @@ func (g *Group) API() *webrtc.API {
 }
 
 // codecFromName returns RTP codecs associated with each name.
+// For video, an additional RTX track is added for retransmission.
 func codecFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 	switch name {
 	case "vp8":
@@ -137,6 +138,10 @@ func codecFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 				RTPCodecCapability: webrtc.RTPCodecCapability{"video/VP8", 90000, 0, "", nil},
 				PayloadType:        96,
 			},
+			{
+				RTPCodecCapability: webrtc.RTPCodecCapability{"video/rtx", 90000, 0, "apt=96", nil},
+				PayloadType:        97,
+			},
 		}, nil
 	case "vp9":
 		return []webrtc.RTPCodecParameters{
@@ -144,12 +149,20 @@ func codecFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 				RTPCodecCapability: webrtc.RTPCodecCapability{"video/VP9", 90000, 0, "profile-id=2", nil},
 				PayloadType:        98,
 			},
+			{
+				RTPCodecCapability: webrtc.RTPCodecCapability{"video/rtx", 90000, 0, "apt=98", nil},
+				PayloadType:        99,
+			},
 		}, nil
 	case "h264":
 		return []webrtc.RTPCodecParameters{
 			{
 				RTPCodecCapability: webrtc.RTPCodecCapability{"video/H264", 90000, 0, "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f", nil},
 				PayloadType:        102,
+			},
+			{
+				RTPCodecCapability: webrtc.RTPCodecCapability{"video/rtx", 90000, 0, "apt=102", nil},
+				PayloadType:        103,
 			},
 		}, nil
 	case "opus":
