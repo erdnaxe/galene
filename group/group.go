@@ -128,77 +128,64 @@ func (g *Group) API() *webrtc.API {
 	return APIFromNames(codecs)
 }
 
-func codecFromName(name string) (webrtc.RTPCodecCapability, error) {
+// codecFromName returns RTP codecs associated with each name.
+func codecFromName(name string) ([]webrtc.RTPCodecParameters, error) {
 	switch name {
 	case "vp8":
-		return webrtc.RTPCodecCapability{
-			"video/VP8", 90000, 0,
-			"",
-			nil,
+		return []webrtc.RTPCodecParameters{
+			{
+				RTPCodecCapability: webrtc.RTPCodecCapability{"video/VP8", 90000, 0, "", nil},
+				PayloadType:        96,
+			},
 		}, nil
 	case "vp9":
-		return webrtc.RTPCodecCapability{
-			"video/VP9", 90000, 0,
-			"profile-id=2",
-			nil,
+		return []webrtc.RTPCodecParameters{
+			{
+				RTPCodecCapability: webrtc.RTPCodecCapability{"video/VP9", 90000, 0, "profile-id=2", nil},
+				PayloadType:        98,
+			},
 		}, nil
 	case "h264":
-		return webrtc.RTPCodecCapability{
-			"video/H264", 90000, 0,
-			"level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f",
-			nil,
+		return []webrtc.RTPCodecParameters{
+			{
+				RTPCodecCapability: webrtc.RTPCodecCapability{"video/H264", 90000, 0, "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f", nil},
+				PayloadType:        102,
+			},
 		}, nil
 	case "opus":
-		return webrtc.RTPCodecCapability{
-			"audio/opus", 48000, 2,
-			"minptime=10;useinbandfec=1;stereo=1;sprop-stereo=1",
-			nil,
+		return []webrtc.RTPCodecParameters{
+			{
+				RTPCodecCapability: webrtc.RTPCodecCapability{"audio/opus", 48000, 2, "minptime=10;useinbandfec=1;stereo=1;sprop-stereo=1", nil},
+				PayloadType:        111,
+			},
 		}, nil
 	case "g722":
-		return webrtc.RTPCodecCapability{
-			"audio/G722", 8000, 1,
-			"",
-			nil,
+		return []webrtc.RTPCodecParameters{
+			{
+				RTPCodecCapability: webrtc.RTPCodecCapability{"audio/G722", 8000, 1, "", nil},
+				PayloadType:        9,
+			},
 		}, nil
 	case "pcmu":
-		return webrtc.RTPCodecCapability{
-			"audio/PCMU", 8000, 1,
-			"",
-			nil,
+		return []webrtc.RTPCodecParameters{
+			{
+				RTPCodecCapability: webrtc.RTPCodecCapability{"audio/PCMU", 8000, 1, "", nil},
+				PayloadType:        0,
+			},
 		}, nil
 	case "pcma":
-		return webrtc.RTPCodecCapability{
-			"audio/PCMA", 8000, 1,
-			"",
-			nil,
+		return []webrtc.RTPCodecParameters{
+			{
+				RTPCodecCapability: webrtc.RTPCodecCapability{"audio/PCMA", 8000, 1, "", nil},
+				PayloadType:        8,
+			},
 		}, nil
 	default:
-		return webrtc.RTPCodecCapability{}, errors.New("unknown codec")
+		return []webrtc.RTPCodecParameters{}, errors.New("unknown codec")
 	}
 }
 
-func payloadType(codec webrtc.RTPCodecCapability) (webrtc.PayloadType, error) {
-	switch strings.ToLower(codec.MimeType) {
-	case "video/vp8":
-		return 96, nil
-	case "video/vp9":
-		return 98, nil
-	case "video/h264":
-		return 102, nil
-	case "audio/opus":
-		return 111, nil
-	case "audio/g722":
-		return 9, nil
-	case "audio/pcmu":
-		return 0, nil
-	case "audio/pcma":
-		return 8, nil
-	default:
-		return 0, errors.New("unknown codec")
-	}
-}
-
-func APIFromCodecs(codecs []webrtc.RTPCodecCapability) *webrtc.API {
+func APIFromCodecs(codecs []webrtc.RTPCodecParameters) *webrtc.API {
 	s := webrtc.SettingEngine{}
 	s.SetSRTPReplayProtectionWindow(512)
 	if !UseMDNS {
@@ -209,7 +196,7 @@ func APIFromCodecs(codecs []webrtc.RTPCodecCapability) *webrtc.API {
 	for _, codec := range codecs {
 		var tpe webrtc.RTPCodecType
 		var fb []webrtc.RTCPFeedback
-		if strings.HasPrefix(strings.ToLower(codec.MimeType), "video/") {
+		if strings.HasPrefix(strings.ToLower(codec.RTPCodecCapability.MimeType), "video/") {
 			tpe = webrtc.RTPCodecTypeVideo
 			fb = []webrtc.RTCPFeedback{
 				{"goog-remb", ""},
@@ -217,28 +204,23 @@ func APIFromCodecs(codecs []webrtc.RTPCodecCapability) *webrtc.API {
 				{"nack", "pli"},
 				{"ccm", "fir"},
 			}
-		} else if strings.HasPrefix(strings.ToLower(codec.MimeType), "audio/") {
+		} else if strings.HasPrefix(strings.ToLower(codec.RTPCodecCapability.MimeType), "audio/") {
 			tpe = webrtc.RTPCodecTypeAudio
 			fb = []webrtc.RTCPFeedback{}
 		} else {
 			continue
 		}
 
-		ptpe, err := payloadType(codec)
-		if err != nil {
-			log.Printf("%v", err)
-			continue
-		}
 		m.RegisterCodec(
 			webrtc.RTPCodecParameters{
 				RTPCodecCapability: webrtc.RTPCodecCapability{
-					MimeType:     codec.MimeType,
-					ClockRate:    codec.ClockRate,
-					Channels:     codec.Channels,
-					SDPFmtpLine:  codec.SDPFmtpLine,
+					MimeType:     codec.RTPCodecCapability.MimeType,
+					ClockRate:    codec.RTPCodecCapability.ClockRate,
+					Channels:     codec.RTPCodecCapability.Channels,
+					SDPFmtpLine:  codec.RTPCodecCapability.SDPFmtpLine,
 					RTCPFeedback: fb,
 				},
-				PayloadType: ptpe,
+				PayloadType: codec.PayloadType,
 			},
 			tpe,
 		)
@@ -253,14 +235,14 @@ func APIFromNames(names []string) *webrtc.API {
 	if len(names) == 0 {
 		names = []string{"vp8", "opus"}
 	}
-	codecs := make([]webrtc.RTPCodecCapability, 0, len(names))
+	codecs := make([]webrtc.RTPCodecParameters, 0, len(names))
 	for _, n := range names {
-		codec, err := codecFromName(n)
+		newCodecs, err := codecFromName(n)
 		if err != nil {
 			log.Printf("Codec %v: %v", n, err)
 			continue
 		}
-		codecs = append(codecs, codec)
+		codecs = append(codecs, newCodecs...)
 	}
 
 	return APIFromCodecs(codecs)
